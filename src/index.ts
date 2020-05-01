@@ -7,9 +7,8 @@ import { WebsocketProvider } from 'y-websocket'
 import { EditorBinding } from './y-editor';
 import { isEqual } from 'lodash/fp';
 
-
-const binding = new EditorBinding('tttt')
-const provider = new WebsocketProvider('wss://demos.yjs.dev', 'editorjs-demo', binding.doc)
+const holder = document.getElementById('codex-editor1')
+// const provider = new WebsocketProvider('wss://demos.yjs.dev', 'editorjs-demo', binding.doc)
 
 // binding.observe('editor2', (data) => {
 //   console.log(2222, data);
@@ -19,12 +18,12 @@ const provider = new WebsocketProvider('wss://demos.yjs.dev', 'editorjs-demo', b
 const editor1 = new EditorJS({
   holderId: 'codex-editor1',
 
-  async onChange() {
-    console.time('onChange')
-    const { blocks } = await editor1.save()
-    binding.emitChange({ blocks })
-    console.timeEnd('onChange')
-  },
+  // async onChange() {
+  //   console.time('onChange')
+  //   const { blocks } = await editor1.save()
+  //   binding.emitChange({ blocks })
+  //   console.timeEnd('onChange')
+  // },
 
   tools: {
     header: {
@@ -40,6 +39,8 @@ const editor1 = new EditorJS({
 })
 // @ts-ignore
 window.editor = editor1
+
+const binding = new EditorBinding(editor1, holder)
 
 binding.observe('editor1', async (data) => {
   console.log(1111, data, editor1);
