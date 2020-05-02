@@ -32,6 +32,7 @@ export class EditorBinding {
     this.holder = holder
     this.editor = editor
     this.setObserver()
+    this.initYDoc()
     // this.state = this.doc.getMap('test doc')
     // this.state.observeDeep((evts, tr) => {
     //   // this.emitChange(this.getState())
@@ -39,6 +40,15 @@ export class EditorBinding {
     //     handler(this.getState())
     //   })
     // })
+  }
+
+  private async initYDoc() {
+    await this.editor.isReady 
+    console.log(
+      '------- initYDoc',
+      await this.editor.save(),
+      jsonMap2Y(await this.editor.save()).toJSON()
+    );
   }
 
   private async setObserver() {
@@ -98,15 +108,25 @@ export class EditorBinding {
 
     /** call once */
     if (contentMutated) {
-      // change event
-      console.log('------ binding onchange:', changedBlockElements);
-
       this.onBlockChange(changedBlockElements.filter(Boolean))
     }
   }
 
-  private onBlockChange(changedElements: Element[]) {
+  private onBlockChange(changedElements: HTMLElement[]) {
+    const blockCount = this.editor.blocks.getBlocksCount()
+    const blocks = []
+    for (let i = 0; i < blockCount; i += 1) {
+      blocks.push(this.editor.blocks.getBlockByIndex(i))
+    }
+    const changedBlocks = blocks.filter(block => changedElements.includes(block.holder))
 
+    // changedElements.forEach(el => {
+    //   if (!el.dataset.blockId) { 
+    //     el.setAttribute('data-block-id', '')
+    //   }
+    // })
+
+    console.log('------ binding onchange:', changedElements, changedBlocks);
   }
 
   getState() {
