@@ -32,6 +32,22 @@ test('ytext 多个删除操作索引', () => {
   })
 })
 
+test('内容相同的doc的update无法直接合并，必须有一个共同起点', (done) => {
+  const doc1 = new Y.Doc()
+  const doc2 = new Y.Doc()
+  const a1 = doc1.getArray('arr')
+  const a2 = doc2.getArray('arr')
+  a1.push([1])
+  a2.push([1])
+
+  doc1.on('update', (update) => {
+    Y.applyUpdate(doc2, update)
+    expect(a1.toJSON()).not.toEqual(a2.toJSON())
+    done()
+  })
+  a1.push([2])
+})
+
 // test('EditorBinding 监听变化', (cb) => {
 //   const binding = new EditorBinding('ttt')
 //   const data = { blocks: [{ type: 'paragraph', data: {} }] }
@@ -46,13 +62,14 @@ test('ytext 多个删除操作索引', () => {
 //   expect(binding.getState()).toEqual(data)
 // })
 
-test('EditorBinding 重复提交不触发更新', () => {
-  const binding = new EditorBinding('ttt')
-  const data = { blocks: [{ type: 'paragraph', data: {} }] }
-  binding.emitChange(data)
-  binding.observe('other', (val) => {
-    throw new Error('重复提交不触发更新')
-  })
-  binding.emitChange(data)
-  expect(binding.getState()).toEqual(data)
-})
+// test('EditorBinding 重复提交不触发更新', () => {
+//   const binding = new EditorBinding('ttt')
+//   const data = { blocks: [{ type: 'paragraph', data: {} }] }
+//   binding.emitChange(data)
+//   binding.observe('other', (val) => {
+//     throw new Error('重复提交不触发更新')
+//   })
+//   binding.emitChange(data)
+//   expect(binding.getState()).toEqual(data)
+// })
+

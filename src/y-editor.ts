@@ -43,7 +43,7 @@ export class EditorBinding {
   }
 
   private async initYDoc() {
-    await this.editor.isReady 
+    await this.editor.isReady
     console.log(
       '------- initYDoc',
       await this.editor.save(),
@@ -73,42 +73,57 @@ export class EditorBinding {
      * 1) mutations that concerns client changes: settings changes, symbol added, deletion, insertions and so on
      * 2) functional changes. On each client actions we set functional identifiers to interact with user
      */
-    let contentMutated = false;
     const changedBlockElements = []
 
     mutationList.forEach((mutation) => {
       const target = mutation.target as Element
       const blockSelector = '.' + Block.CSS.wrapper
 
+      function findChangedBlockElement(el) {
+        // text element not contains closest
+        return el.closest
+          ? el.closest(blockSelector)
+          // parentElement is null when text element removed
+          : el.parentElement?.closest(blockSelector)
+      }
+
+      const { addedNodes, removedNodes } = mutation
+      const changeType = addedNodes.length
+        ? 'add'
+        : removedNodes.length
+          ? 'remove'
+          : 'update'
+
       switch (mutation.type) {
         case 'childList':
         case 'characterData':
-          changedBlockElements.push(
-            target.closest 
-              ? target.closest(blockSelector) 
-              : target.parentElement.closest(blockSelector)
-          )
-          contentMutated = true;
+          const blockElement = findChangedBlockElement(target)
+          if (blockElement) {
+            changedBlockElements.push({
+              changeType,
+              blockElement,
+            });
+          }
           break;
         case 'attributes':
           /**
            * Changes on Element.ce-block usually is functional
            */
           if (!target.classList.contains(Block.CSS.wrapper)) {
-            contentMutated = true;
-            changedBlockElements.push(
-              target.closest 
-                ? target.closest(blockSelector) 
-                : target.parentElement.closest(blockSelector)
-            )
+            const blockElement = findChangedBlockElement(target)
+            if (blockElement) {
+              changedBlockElements.push({
+                changeType,
+                blockElement,
+              });
+            }
+            break;
           }
-          break;
       }
     });
 
-    /** call once */
-    if (contentMutated) {
-      this.onBlockChange(changedBlockElements.filter(Boolean))
+    if (changedBlockElements.length > 0) {
+      this.onBlockChange(changedBlockElements)
     }
   }
 
