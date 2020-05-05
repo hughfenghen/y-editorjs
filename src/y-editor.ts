@@ -17,10 +17,7 @@ const Block = {
 }
 
 export class EditorBinding {
-  state = null
-  listeners = new Map<string, Function>()
-  
-  yArray
+  yArray: Y.Array<any>
 
   observer: MutationObserver
 
@@ -28,17 +25,21 @@ export class EditorBinding {
 
   editor: EditorJS
 
-  constructor(editor, holder) {
+  isReady: Promise<any>
+
+  constructor(editor, holder, yArray) {
     this.holder = holder
     this.editor = editor
+    this.yArray = yArray
+    this.isReady = this.initYDoc()
     this.setObserver()
-    this.initYDoc()
   }
 
   private async initYDoc() {
     await this.editor.isReady
-    // todo: constructor arg
-    this.yArray = (new Y.Doc()).getArray('blocks')
+    await this.editor.blocks.render({ 
+      blocks: this.yArray.toArray()
+    })  
   }
 
   private async setObserver() {
@@ -129,11 +130,12 @@ export class EditorBinding {
 
     // todo: maybe optimize, merge call save()
     for await (const { changeType, blockElement, index } of changed) {
+      const savedData = await blocks[index]?.save()
       switch (changeType) {
         case 'add':
           const blockId = uuid()
           blockElement.setAttribute('data-block-id', blockId)
-          this.yArray.insert(index, [await blocks[index].save()])
+          this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
           break;
         case 'remove':
           this.yArray.delete(index, 1)
@@ -143,6 +145,7 @@ export class EditorBinding {
           // diff(blocks.find(block => block.holder === blockElement), this.doc.getMap('<uuid>'))
           this.yArray.delete(index, 1)
           this.yArray.insert(index, [await blocks[index].save()])
+          this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
           break;
       }
     }

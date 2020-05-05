@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
 import * as Diff from 'diff';
 import { EditorBinding } from '../y-editor';
+import EditorJS from '@editorjs/editorjs';
 
 test('ytext 更新节点属性', () => {
   const doc = new Y.Doc()
@@ -12,8 +13,8 @@ test('ytext 更新节点属性', () => {
 })
 
 test('diff merge patch', () => {
-  const oldStr = 'aaaaaaaa'  
-  const newStr = 'aaaabbbbaaabba'  
+  const oldStr = 'aaaaaaaa'
+  const newStr = 'aaaabbbbaaabba'
   const patch = Diff.createPatch(null, oldStr, newStr)
   expect(Diff.applyPatch(oldStr, patch)).toBe(newStr)
   // base变化，无法合并
@@ -23,7 +24,7 @@ test('diff merge patch', () => {
 test('ytext 多个删除操作索引', () => {
   const doc = new Y.Doc()
   const txt = doc.getText('ytext 多个删除操作索引')
-  txt.insert(0, '0123456789') 
+  txt.insert(0, '0123456789')
   doc.transact(() => {
     txt.delete(1, 3)
     txt.delete(4, 3)
@@ -46,6 +47,41 @@ test('内容相同的doc的update无法直接合并，必须有一个共同起�
     done()
   })
   a1.push([2])
+})
+
+test('ydoc初始化数据同步数据到editor.js', async () => {
+  const holder = document.createElement('div')
+  const editor = new EditorJS({
+    holder,
+    // @ts-ignore https://github.com/kulshekhar/ts-jest/issues/281
+    logLevel: 'ERROR',
+  })
+  const ydoc = new Y.Doc()
+  const yArray = ydoc.getArray('docId')
+  const blockData = [
+    {
+      "type": "paragraph",
+      "data": {
+        "text": "111"
+      },
+    },
+    {
+      "type": "paragraph",
+      "data": {
+        "text": "222"
+      },
+    },
+    {
+      "type": "paragraph",
+      "data": {
+        "text": "333"
+      },
+    }
+  ]
+  yArray.push(blockData)
+  const binding = new EditorBinding(editor, holder, yArray)
+  await binding.isReady
+  expect((await editor.save()).blocks).toEqual(blockData)
 })
 
 // test('EditorBinding 监听变化', (cb) => {

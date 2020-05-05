@@ -16,14 +16,7 @@ const holder = document.getElementById('codex-editor1')
 // })
 
 const editor1 = new EditorJS({
-  holderId: 'codex-editor1',
-
-  // async onChange() {
-  //   console.time('onChange')
-  //   const { blocks } = await editor1.save()
-  //   binding.emitChange({ blocks })
-  //   console.timeEnd('onChange')
-  // },
+  holder,
 
   tools: {
     header: {
@@ -40,13 +33,8 @@ const editor1 = new EditorJS({
 // @ts-ignore
 window.editor = editor1
 
-const binding = new EditorBinding(editor1, holder)
-
-binding.observe('editor1', async (data) => {
-  console.log(1111, data, editor1);
-  await editor1.isReady
-  editor1.render(data)
-})
+const ydoc = new Y.Doc()
+const binding = new EditorBinding(editor1, holder, ydoc.getArray('docId'))
 
 // const editor2 = new EditorJS({
 //   holderId: 'codex-editor2',
