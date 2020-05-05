@@ -1,11 +1,10 @@
 import * as Y from 'yjs';
+import uuid from 'uuid/dist/v4';
 import EditorJS from '@editorjs/editorjs';
-import { isPlainObject, isString, uniqueId, isEqual } from 'lodash/fp';
+import { isPlainObject, isString } from 'lodash/fp';
 
 
-// editor.blocks.delete(0); editor.blocks.insert(b1.name, (await b1.save()).data, b1.config)
-
-// from editorjs
+// from editor.js
 const Block = {
   CSS: {
     wrapper: 'ce-block',
@@ -20,7 +19,8 @@ const Block = {
 export class EditorBinding {
   state = null
   listeners = new Map<string, Function>()
-  doc = new Y.Doc()
+  
+  yArray
 
   observer: MutationObserver
 
@@ -33,22 +33,12 @@ export class EditorBinding {
     this.editor = editor
     this.setObserver()
     this.initYDoc()
-    // this.state = this.doc.getMap('test doc')
-    // this.state.observeDeep((evts, tr) => {
-    //   // this.emitChange(this.getState())
-    //   this.listeners.forEach((handler) => {
-    //     handler(this.getState())
-    //   })
-    // })
   }
 
   private async initYDoc() {
     await this.editor.isReady
-    console.log(
-      '------- initYDoc',
-      await this.editor.save(),
-      jsonMap2Y(await this.editor.save()).toJSON()
-    );
+    // todo: constructor arg
+    this.yArray = (new Y.Doc()).getArray('blocks')
   }
 
   private async setObserver() {
@@ -73,7 +63,7 @@ export class EditorBinding {
      * 1) mutations that concerns client changes: settings changes, symbol added, deletion, insertions and so on
      * 2) functional changes. On each client actions we set functional identifiers to interact with user
      */
-    const changedBlockElements = []
+    const changed = []
 
     mutationList.forEach((mutation) => {
       const target = mutation.target as Element
@@ -88,6 +78,7 @@ export class EditorBinding {
       }
 
       const { addedNodes, removedNodes } = mutation
+      const blockElements = Array.from(this.holder.querySelectorAll(blockSelector))
       const changeType = addedNodes.length
         ? 'add'
         : removedNodes.length
@@ -99,9 +90,10 @@ export class EditorBinding {
         case 'characterData':
           const blockElement = findChangedBlockElement(target)
           if (blockElement) {
-            changedBlockElements.push({
+            changed.push({
               changeType,
               blockElement,
+              index: blockElements.indexOf(blockElement),
             });
           }
           break;
@@ -112,9 +104,10 @@ export class EditorBinding {
           if (!target.classList.contains(Block.CSS.wrapper)) {
             const blockElement = findChangedBlockElement(target)
             if (blockElement) {
-              changedBlockElements.push({
+              changed.push({
                 changeType,
                 blockElement,
+                index: blockElements.indexOf(blockElement),
               });
             }
             break;
@@ -122,46 +115,39 @@ export class EditorBinding {
       }
     });
 
-    if (changedBlockElements.length > 0) {
-      this.onBlockChange(changedBlockElements)
+    if (changed.length > 0) {
+      this.onBlockChange(changed)
     }
   }
 
-  private onBlockChange(changedElements: HTMLElement[]) {
+  private async onBlockChange(changed) {
     const blockCount = this.editor.blocks.getBlocksCount()
     const blocks = []
     for (let i = 0; i < blockCount; i += 1) {
       blocks.push(this.editor.blocks.getBlockByIndex(i))
     }
-    const changedBlocks = blocks.filter(block => changedElements.includes(block.holder))
 
-    // changedElements.forEach(el => {
-    //   if (!el.dataset.blockId) { 
-    //     el.setAttribute('data-block-id', '')
-    //   }
-    // })
-
-    console.log('------ binding onchange:', changedElements, changedBlocks);
-  }
-
-  getState() {
-    return this.state.toJSON()
-  }
-
-  updateDoc(json) {
-    for (const key in json) {
-      this.state.set(key, jsonMap2Y(json[key]))
+    // todo: maybe optimize, merge call save()
+    for await (const { changeType, blockElement, index } of changed) {
+      switch (changeType) {
+        case 'add':
+          const blockId = uuid()
+          blockElement.setAttribute('data-block-id', blockId)
+          this.yArray.insert(index, [await blocks[index].save()])
+          break;
+        case 'remove':
+          this.yArray.delete(index, 1)
+          break;
+        case 'update':
+          // todo: diff block data and doc data
+          // diff(blocks.find(block => block.holder === blockElement), this.doc.getMap('<uuid>'))
+          this.yArray.delete(index, 1)
+          this.yArray.insert(index, [await blocks[index].save()])
+          break;
+      }
     }
-  }
 
-  emitChange(newData) {
-    if (isEqual(newData, this.getState())) return;
-
-    this.updateDoc(newData)
-  }
-
-  observe(bindingName, handler) {
-    this.listeners.set(bindingName, handler)
+    console.log('------ binding onchange:', changed, this.yArray.toJSON());
   }
 }
 
