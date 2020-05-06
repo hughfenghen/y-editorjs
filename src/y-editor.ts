@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import uuid from 'uuid/dist/v4';
 import EditorJS from '@editorjs/editorjs';
 import { isPlainObject, isString, xor } from 'lodash/fp';
-import { createMutex } from 'lib0/mutex'
+import { createMutex } from './utils/mutex'
 
 // from editor.js
 const Block = {
@@ -51,15 +51,16 @@ export class EditorBinding {
 
   private async initYDoc() {
     await this.editor.isReady
-    await this.editor.blocks.render({ 
-      blocks: this.yArray.toArray()
-    })
+    if (this.yArray.length) {
+      await this.editor.blocks.render({
+        blocks: this.yArray.toArray()
+      })
+    }
     this.yArray.observeDeep((evt, tr) => {
       this.mux(() => {
         const docArr = this.yArray.toArray()
         // add or delete
         const changed = xor(docArr, [...this.mapping.keys()])
-        this.editor.blocks.getBlockByIndex(0)
         changed.forEach(it => {
           if (this.mapping.has(it)) {
             // del an item
@@ -160,22 +161,26 @@ export class EditorBinding {
     // todo: maybe optimize, merge call save()
     for await (const { changeType, blockElement, index } of changed) {
       const savedData = await this.editorBlocks[index]?.save()
+      const blockData = { type: savedData.tool, data: savedData.data }
       // avoid calling observerDeep handler
       this.mux(() => {
         switch (changeType) {
           case 'add':
             const blockId = uuid()
             blockElement.setAttribute('data-block-id', blockId)
-            this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
+            this.yArray.insert(index, [blockData])
+            this.mapping.set(blockData, this.editorBlocks[index])
             break;
           case 'remove':
-            this.yArray.delete(index, 1)
+            this.yArray.delete(index)
+            this.mapping.delete(this.yArray.toArray()[index])
             break;
           case 'update':
             // todo: diff block data and doc data
-            // diff(blocks.find(block => block.holder === blockElement), this.doc.getMap('<uuid>'))
-            this.yArray.delete(index, 1)
-            this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
+            this.mapping.delete(this.yArray.toArray()[index])
+            this.yArray.delete(index)
+            this.yArray.insert(index, [blockData])
+            this.mapping.set(blockData, this.editorBlocks[index])
             break;
         }
       })

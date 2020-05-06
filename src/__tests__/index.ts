@@ -12,6 +12,14 @@ test('ytext 更新节点属性', () => {
   expect(txt.toString()).toBe('<img src="bbb"></img>')
 })
 
+test('Y.Array中的元素不会被改变引用', () => {
+  const doc = new Y.Doc()
+  const yarr = doc.getArray('ttt')
+  const data = {}
+  yarr.insert(0, [data])
+  expect(yarr.toArray()[0]).toBe(data)
+})
+
 test('diff merge patch', () => {
   const oldStr = 'aaaaaaaa'
   const newStr = 'aaaabbbbaaabba'
