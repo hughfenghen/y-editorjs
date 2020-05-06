@@ -1,8 +1,8 @@
 import * as Y from 'yjs';
 import uuid from 'uuid/dist/v4';
 import EditorJS from '@editorjs/editorjs';
-import { isPlainObject, isString } from 'lodash/fp';
-
+import { isPlainObject, isString, xor } from 'lodash/fp';
+import { createMutex } from 'lib0/mutex'
 
 // from editor.js
 const Block = {
@@ -27,19 +27,54 @@ export class EditorBinding {
 
   isReady: Promise<any>
 
+  mux
+
+  mapping = new Map()
+
   constructor(editor, holder, yArray) {
     this.holder = holder
     this.editor = editor
     this.yArray = yArray
+    this.mux = createMutex()
     this.isReady = this.initYDoc()
     this.setObserver()
+  }
+
+  get editorBlocks() {
+    const blockCount = this.editor.blocks.getBlocksCount()
+    const blocks = []
+    for (let i = 0; i < blockCount; i += 1) {
+      blocks.push(this.editor.blocks.getBlockByIndex(i))
+    }
+    return blocks
   }
 
   private async initYDoc() {
     await this.editor.isReady
     await this.editor.blocks.render({ 
       blocks: this.yArray.toArray()
-    })  
+    })
+    this.yArray.observeDeep((evt, tr) => {
+      this.mux(() => {
+        const docArr = this.yArray.toArray()
+        // add or delete
+        const changed = xor(docArr, [...this.mapping.keys()])
+        this.editor.blocks.getBlockByIndex(0)
+        changed.forEach(it => {
+          if (this.mapping.has(it)) {
+            // del an item
+            const block = this.mapping.get(it)
+            this.mapping.delete(it)
+            this.editor.blocks.delete(this.editorBlocks.indexOf(block))
+          } else {
+            // add an item
+            const index = docArr.indexOf(it)
+            this.editor.blocks.insert(it.type, it.data, null, index)
+            this.mapping.set(it, this.editor.blocks.getBlockByIndex(index))
+          }
+        });
+      })
+    })
   }
 
   private async setObserver() {
@@ -122,32 +157,28 @@ export class EditorBinding {
   }
 
   private async onBlockChange(changed) {
-    const blockCount = this.editor.blocks.getBlocksCount()
-    const blocks = []
-    for (let i = 0; i < blockCount; i += 1) {
-      blocks.push(this.editor.blocks.getBlockByIndex(i))
-    }
-
     // todo: maybe optimize, merge call save()
     for await (const { changeType, blockElement, index } of changed) {
-      const savedData = await blocks[index]?.save()
-      switch (changeType) {
-        case 'add':
-          const blockId = uuid()
-          blockElement.setAttribute('data-block-id', blockId)
-          this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
-          break;
-        case 'remove':
-          this.yArray.delete(index, 1)
-          break;
-        case 'update':
-          // todo: diff block data and doc data
-          // diff(blocks.find(block => block.holder === blockElement), this.doc.getMap('<uuid>'))
-          this.yArray.delete(index, 1)
-          this.yArray.insert(index, [await blocks[index].save()])
-          this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
-          break;
-      }
+      const savedData = await this.editorBlocks[index]?.save()
+      // avoid calling observerDeep handler
+      this.mux(() => {
+        switch (changeType) {
+          case 'add':
+            const blockId = uuid()
+            blockElement.setAttribute('data-block-id', blockId)
+            this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
+            break;
+          case 'remove':
+            this.yArray.delete(index, 1)
+            break;
+          case 'update':
+            // todo: diff block data and doc data
+            // diff(blocks.find(block => block.holder === blockElement), this.doc.getMap('<uuid>'))
+            this.yArray.delete(index, 1)
+            this.yArray.insert(index, [{ type: savedData.tool, data: savedData.data }])
+            break;
+        }
+      })
     }
 
     console.log('------ binding onchange:', changed, this.yArray.toJSON());

@@ -49,7 +49,7 @@ test('内容相同的doc的update无法直接合并，必须有一个共同起�
   a1.push([2])
 })
 
-test('ydoc初始化数据同步数据到editor.js', async () => {
+test('ydoc初始化数据同步到editor.js', async () => {
   const holder = document.createElement('div')
   const editor = new EditorJS({
     holder,
@@ -81,6 +81,30 @@ test('ydoc初始化数据同步数据到editor.js', async () => {
   yArray.push(blockData)
   const binding = new EditorBinding(editor, holder, yArray)
   await binding.isReady
+  expect((await editor.save()).blocks).toEqual(blockData)
+})
+
+test('ydoc更新数据同步到editor.js', async () => {
+  const holder = document.createElement('div')
+  const editor = new EditorJS({
+    holder,
+    // @ts-ignore https://github.com/kulshekhar/ts-jest/issues/281
+    logLevel: 'ERROR',
+  })
+  const ydoc = new Y.Doc()
+  const yArray = ydoc.getArray('docId')
+  const binding = new EditorBinding(editor, holder, yArray)
+  const blockData = [
+    {
+      "type": "paragraph",
+      "data": {
+        "text": "111"
+      },
+    }
+  ]
+  await binding.isReady
+  yArray.push(blockData)
+
   expect((await editor.save()).blocks).toEqual(blockData)
 })
 

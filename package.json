@@ -20,6 +20,7 @@
     "@editorjs/list": "^1.4.0",
     "@editorjs/table": "^1.2.2",
     "diff": "^4.0.2",
+    "lib0": "^0.2.25",
     "lodash": "^4.17.15",
     "uuid": "^8.0.0",
     "y-websocket": "^1.2.4",

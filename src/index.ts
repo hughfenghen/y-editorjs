@@ -30,11 +30,14 @@ const editor1 = new EditorJS({
     table: Table,
   },
 })
-// @ts-ignore
-window.editor = editor1
 
 const ydoc = new Y.Doc()
 const binding = new EditorBinding(editor1, holder, ydoc.getArray('docId'))
+
+// @ts-ignore
+window.editor = editor1
+// @ts-ignore
+window.binding = binding
 
 // const editor2 = new EditorJS({
 //   holderId: 'codex-editor2',
