@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import * as Diff from 'diff';
 import { EditorBinding } from '../y-editor';
 import EditorJS from '@editorjs/editorjs';
+import { omit } from 'lodash/fp';
 
 test('ytext 更新节点属性', () => {
   const doc = new Y.Doc()
@@ -57,13 +58,18 @@ test('内容相同的doc的update无法直接合并，必须有一个共同起�
   a1.push([2])
 })
 
-test('ydoc初始化数据同步到editor.js', async () => {
+function createEditor() {
   const holder = document.createElement('div')
   const editor = new EditorJS({
     holder,
     // @ts-ignore https://github.com/kulshekhar/ts-jest/issues/281
     logLevel: 'ERROR',
   })
+  return { editor, holder }
+}
+
+test('ydoc初始化数据同步到editor.js', async () => {
+  const { editor, holder } = createEditor()
   const ydoc = new Y.Doc()
   const yArray = ydoc.getArray('docId')
   const blockData = [
@@ -73,18 +79,6 @@ test('ydoc初始化数据同步到editor.js', async () => {
         "text": "111"
       },
     },
-    {
-      "type": "paragraph",
-      "data": {
-        "text": "222"
-      },
-    },
-    {
-      "type": "paragraph",
-      "data": {
-        "text": "333"
-      },
-    }
   ]
   yArray.push(blockData)
   const binding = new EditorBinding(editor, holder, yArray)
@@ -93,12 +87,7 @@ test('ydoc初始化数据同步到editor.js', async () => {
 })
 
 test('ydoc更新数据同步到editor.js', async () => {
-  const holder = document.createElement('div')
-  const editor = new EditorJS({
-    holder,
-    // @ts-ignore https://github.com/kulshekhar/ts-jest/issues/281
-    logLevel: 'ERROR',
-  })
+  const { editor, holder } = createEditor()
   const ydoc = new Y.Doc()
   const yArray = ydoc.getArray('docId')
   const binding = new EditorBinding(editor, holder, yArray)
@@ -108,36 +97,12 @@ test('ydoc更新数据同步到editor.js', async () => {
       "data": {
         "text": "111"
       },
+      uuid: 'test-id'
     }
   ]
-  await binding.isReady
   yArray.push(blockData)
 
-  expect((await editor.save()).blocks).toEqual(blockData)
+  await binding.isReady
+  expect((await editor.save()).blocks).toEqual(blockData.map(omit('uuid')))
+  expect(editor.blocks.getBlockByIndex(0).holder.dataset.blockId).toBe('test-id')
 })
-
-// test('EditorBinding 监听变化', (cb) => {
-//   const binding = new EditorBinding('ttt')
-//   const data = { blocks: [{ type: 'paragraph', data: {} }] }
-//   binding.observe('other', (val) => {
-//     expect(val).toEqual(data)
-//     cb()
-//   })
-//   binding.observe('test', (val) => {
-//     throw new Error('不应该触发自己的订阅')
-//   })
-//   binding.emitChange(data)
-//   expect(binding.getState()).toEqual(data)
-// })
-
-// test('EditorBinding 重复提交不触发更新', () => {
-//   const binding = new EditorBinding('ttt')
-//   const data = { blocks: [{ type: 'paragraph', data: {} }] }
-//   binding.emitChange(data)
-//   binding.observe('other', (val) => {
-//     throw new Error('重复提交不触发更新')
-//   })
-//   binding.emitChange(data)
-//   expect(binding.getState()).toEqual(data)
-// })
-
