@@ -1,7 +1,8 @@
 import * as Y from 'yjs';
 import genUUID from 'uuid/dist/v4';
 import EditorJS from '@editorjs/editorjs';
-import { isPlainObject, isString, xor, isEqual } from 'lodash/fp';
+import isEqual from 'lodash/isEqual';
+import xor from 'lodash/xor';
 import { createMutex } from './utils/mutex'
 
 // from editor.js
@@ -235,27 +236,4 @@ export class EditorBinding {
       })
     }
   }
-}
-
-
-export function jsonMap2Y(json) {
-  if (Array.isArray(json)) {
-    const arr = new Y.Array()
-    const rs = json.map((it) => jsonMap2Y(it))
-    arr.push(rs)
-    return arr
-  } else if (isPlainObject(json)) {
-    const map = new Y.Map()
-    for (const key in json) {
-      map.set(key, jsonMap2Y(json[key]))
-    }
-    return map
-  } else if (isString(json)) {
-    return new Y.Text(json)
-  }
-  return json
-}
-
-export function changes2ops() {
-
 }
