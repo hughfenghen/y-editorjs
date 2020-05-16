@@ -12,11 +12,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test": "jest --silent",
-    "build": "parcel build src/y-editor.ts --out-dir=lib",
     "dev": "parcel example/index.html"
   },
   "dependencies": {
-    "@editorjs/editorjs": "^2.17.0",
+    "@editorjs/editorjs": "github:hughfenghen/editor.js#v2.18+blockapi",
     "@editorjs/header": "^2.4.0",
     "@editorjs/list": "^1.4.0",
     "@editorjs/table": "^1.2.2",
